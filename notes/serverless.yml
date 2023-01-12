@@ -1,0 +1,113 @@
+
+
+service: notes-api
+
+frameworkVersion: '3'
+
+# use: serverless deploy, to deply to aws
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev # its gonna add this as a suffix/prefix to our resource names and url
+  region: us-east-1
+  # # this will be applicable for all the functions: to control use this: (inside of notes)
+  # # npm i --save-dev serverless-iam-roles-per-function (add the plugins block bello vv)
+  # iamRoleStatements: 
+  #   - Effect: Allow
+  #     Action: 
+  #       - dynamodb:PutItem
+  #     Resource: !GetAtt notesTable.Arn # you could copy from the error message in the console but this is programmatic
+  #     # search for Fn::GetAtt in dynamodb cloundformation
+  
+
+# 4 lamda functions fo Crud
+# lambda_proxy meaning api gateway will send the whole 
+#   payload and request to a lambda function without doing any filteration (just acting as a proxy)
+
+functions:
+  createNote:
+    handler: handler.createNote #module.function
+    environment: 
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    iamRoleStatements: 
+      - Effect: Allow
+        Action: 
+          - dynamodb:PutItem
+        Resource: !GetAtt notesTable.Arn # these are called intrensic functions
+    events:
+      - http: # this is going to create an api gateway
+          method: post
+          path: notes # /notes
+  
+  updateNote:
+    handler: handler.updateNote
+    environment: 
+      NOTES_TABLE_NAME: !Ref notesTable # ref intrensic function to get the table name
+      # use this in lamda funcs (handler.js) instead of hard coding it
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1 # Reusing Connections with Keep-Alive between lambdas and dynamodb: instead of doing the tcp handshake over and over
+    iamRoleStatements: 
+      - Effect: Allow
+        Action: 
+          - dynamodb:UpdateItem
+        Resource: !GetAtt notesTable.Arn
+    events:
+      - http: 
+          method: put
+          path: notes/{id} # {x} is a variable like: notes/12/
+    
+  deleteNote:
+    handler: handler.deleteNote
+    environment: 
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    iamRoleStatements: 
+      - Effect: Allow
+        Action: 
+          - dynamodb:DeleteItem
+        Resource: !GetAtt notesTable.Arn
+    events:
+      - http: 
+          method: delete
+          path: notes/{id} # {x} is a variable
+  
+  getAllNotes:
+    handler: handler.getAllNotes
+    environment: 
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    iamRoleStatements: 
+      - Effect: Allow
+        Action: 
+          - dynamodb:Scan # reads all items
+        Resource: !GetAtt notesTable.Arn
+    events:
+      - http: 
+          method: get
+          path: notes
+
+plugins:
+  - serverless-iam-roles-per-function
+
+# you can add CloudFormation resource templates here
+resources:
+  Resources:
+    notesTable: # how we refer to it in InfraAsCode
+      Type: AWS::DynamoDB::Table # go to google and search for dynamodb cloudformation
+      Properties: # some properties are required some are not: check notes
+        TableName: notes
+        BillingMode: PAY_PER_REQUEST # if you dont specify this its gonna use provision
+        AttributeDefinitions:
+          - AttributeName: notesId
+            AttributeType: S
+        KeySchema: 
+          - AttributeName: notesId
+            KeyType: HASH
+
+      
+
+#  Outputs:
+#     NewOutput:
+#       Description: "Description for the output"
+#       Value: "Some output value"
