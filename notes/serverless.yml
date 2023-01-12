@@ -26,6 +26,9 @@ provider:
 #   payload and request to a lambda function without doing any filteration (just acting as a proxy)
 
 functions:
+  authorizer: 
+    handler: authorizer.handler
+
   createNote:
     handler: handler.createNote #module.function
     environment: 
@@ -40,6 +43,7 @@ functions:
       - http: # this is going to create an api gateway
           method: post
           path: notes # /notes
+          authorizer: authorizer # serverless framework will associate authorizer with create note
   
   updateNote:
     handler: handler.updateNote
@@ -56,6 +60,7 @@ functions:
       - http: 
           method: put
           path: notes/{id} # {x} is a variable like: notes/12/
+          authorizer: authorizer 
     
   deleteNote:
     handler: handler.deleteNote
@@ -71,6 +76,7 @@ functions:
       - http: 
           method: delete
           path: notes/{id} # {x} is a variable
+          authorizer: authorizer 
   
   getAllNotes:
     handler: handler.getAllNotes
@@ -86,6 +92,7 @@ functions:
       - http: 
           method: get
           path: notes
+          authorizer: authorizer 
 
 plugins:
   - serverless-iam-roles-per-function
