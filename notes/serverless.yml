@@ -8,9 +8,13 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: nodejs12.x
+  runtime: nodejs14.x
   stage: dev # its gonna add this as a suffix/prefix to our resource names and url
   region: us-east-1
+  # environment: if you add them at the provider level they will be available for all the functions
+  #     NOTES_TABLE_NAME: !Ref notesTable
+  #     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+  
   # # this will be applicable for all the functions: to control use this: (inside of notes)
   # # npm i --save-dev serverless-iam-roles-per-function (add the plugins block bello vv)
   # iamRoleStatements: 
@@ -28,6 +32,9 @@ provider:
 functions:
   authorizer: 
     handler: authorizer.handler
+    environment:
+      COGNITO_USERPOOL_ID: !Ref cognitoUserPool
+      COGNITO_WEB_CLIENT_ID: !Ref cognitoUserPoolWebClient
 
   createNote:
     handler: handler.createNote #module.function
@@ -92,25 +99,33 @@ functions:
       - http: 
           method: get
           path: notes
-          authorizer: authorizer 
+          authorizer: # here we use cognito user pool authorizer instead of lambda authorizer vvv is the only thing you need
+            name: userpool_authorizer_myname
+            type: COGNITO_USER_POOLS # add this to show that this is a cognito user pool authorizer (not lambda) 
+            arn: !GetAtt cognitoUserPool.Arn
 
 plugins:
   - serverless-iam-roles-per-function
 
-# you can add CloudFormation resource templates here
-resources:
+
+# moved to another file
+resources: 
   Resources:
-    notesTable: # how we refer to it in InfraAsCode
-      Type: AWS::DynamoDB::Table # go to google and search for dynamodb cloudformation
-      Properties: # some properties are required some are not: check notes
-        TableName: notes
-        BillingMode: PAY_PER_REQUEST # if you dont specify this its gonna use provision
-        AttributeDefinitions:
-          - AttributeName: notesId
-            AttributeType: S
-        KeySchema: 
-          - AttributeName: notesId
-            KeyType: HASH
+    ${file(resources.yml)} # ${} shows that what is inside is a variable
+# # you can add CloudFormation resource templates here
+# resources:
+#   Resources:
+#     notesTable: # how we refer to it in InfraAsCode
+#       Type: AWS::DynamoDB::Table # go to google and search for dynamodb cloudformation
+#       Properties: # some properties are required some are not: check notes
+#         TableName: notes
+#         BillingMode: PAY_PER_REQUEST # if you dont specify this its gonna use provision
+#         AttributeDefinitions:
+#           - AttributeName: notesId
+#             AttributeType: S
+#         KeySchema: 
+#           - AttributeName: notesId
+#             KeyType: HASH
 
       
 

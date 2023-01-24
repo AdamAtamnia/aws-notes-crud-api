@@ -1,0 +1,55 @@
+# you can add CloudFormation resource templates here
+notesTable: # how we refer to it in InfraAsCode
+  Type: AWS::DynamoDB::Table # go to google and search for dynamodb cloudformation
+  Properties: # some properties are required some are not: check notes
+    TableName: notes
+    BillingMode: PAY_PER_REQUEST # if you dont specify this its gonna use provision
+    AttributeDefinitions:
+      - AttributeName: notesId
+        AttributeType: S
+    KeySchema: 
+      - AttributeName: notesId
+        KeyType: HASH
+
+# Cognito user pool
+cognitoUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties: 
+     UserPoolName: MyNotesUserPoolIaC
+
+# Cognito user pool Client
+# can have many clients to have better control of the way different apps interact with userpool
+cognitoUserPoolWebClient:
+  Type: AWS::Cognito::UserPoolClient
+  Properties: 
+    UserPoolId: !Ref cognitoUserPool
+    ClientName: web
+    AllowedOAuthFlows: 
+      - implicit
+    CallbackURLs: 
+      - http://localhost:3000
+    AllowedOAuthFlowsUserPoolClient: true # means we want the client to be able to use the OAuth protocol when this is set to true you have to add AllowedOAuthScopes: 
+    AllowedOAuthScopes: # needs more explanation, probably you can use this to get your profile, email, phone when you are signed in??
+      - phone
+      - email
+      - profile
+      - openid
+    SupportedIdentityProviders: 
+      - COGNITO
+
+# User pool domain
+cognitoUserPoolDomain:
+  Type: AWS::Cognito::UserPoolDomain
+  Properties: 
+    # CustomDomainConfig: only needed for custom domain
+    #   CustomDomainConfigType
+    Domain: mynotesprefixdomain #
+    UserPoolId: !Ref cognitoUserPool
+
+# Application parameters
+userPoolIdParam:
+  Type: AWS::SSM::Parameter
+  Properties:
+      Name: /notes/dev/userPoolArn # /applicationname/stage/name for parameters: recomended to create name as a path (for easy search)
+      Type: String
+      Value: !GetAtt cognitoUserPool.Arn
